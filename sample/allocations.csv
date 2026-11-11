@@ -1,0 +1,5 @@
+register_no,name,room,seat_no,exam_name,exam_date,session
+BCA2301,Aisha K,Room 101,A12,Data Structures,2026-11-20,FN
+BCA2302,Rahul M,Room 101,A13,Data Structures,2026-11-20,FN
+BCA2303,Fathima S,Room 204,B03,Data Structures,2026-11-20,FN
+BCA2301,Aisha K,Room 105,C07,Operating Systems,2026-11-22,FN

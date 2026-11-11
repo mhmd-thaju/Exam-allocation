@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="description" content="Quickly check your exam classroom and seating arrangement for today's exams.">
+  <title>Exam Classroom Finder — Today's Seating</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/deviceDetector.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <main class="container">
+      <header class="hero-header">
+        <div class="hero-icon">🎓</div>
+        <h1>Exam Classroom Finder</h1>
+        <p class="hero-sub">Instant seating arrangement lookup</p>
+        <div class="today-chip">
+          <span class="chip-dot"></span>
+          <span class="chip-icon">📅</span>
+          <span id="todayDisplay">Today's Exams</span>
+        </div>
+      </header>
+
+      <section class="card search-card">
+        <label for="regNo" class="input-label">Enter Register / Admission Number</label>
+        <div class="input-group">
+          <input
+            id="regNo"
+            type="text"
+            placeholder="e.g. BCA2301"
+            autocomplete="off"
+            autocapitalize="characters"
+            autocorrect="off"
+            spellcheck="false"
+            enterkeyhint="search"
+            inputmode="text"
+            autofocus
+          >
+          <button id="clearInputBtn" class="clear-btn hidden" type="button" aria-label="Clear input">✕</button>
+        </div>
+
+        <button id="searchBtn" class="btn btn-primary btn-block">
+          <span class="btn-text">Check My Classroom</span>
+          <span class="btn-spinner hidden" id="searchSpinner"></span>
+        </button>
+
+        <div id="message" class="msg hidden" role="alert"></div>
+      </section>
+
+      <!-- Results section -->
+      <section id="results" class="results-container" aria-live="polite"></section>
+
+      <!-- Quick helper note -->
+      <div class="helper-box">
+        <p>💡 <strong>Note:</strong> Only today's scheduled examinations are displayed. For future exams, check back on the day of the exam.</p>
+      </div>
+
+      <footer class="app-footer">
+        <a href="/admin.html" class="admin-link">🔒 Exam Controller Login</a>
+      </footer>
+    </main>
+  </div>
+  <script src="/js/student.js"></script>
+</body>
+</html>

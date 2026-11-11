@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Exam Controller Dashboard</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/deviceDetector.js"></script>
+</head>
+<body class="admin-body">
+  <div class="app-layout">
+    <main class="container wide">
+      <!-- Admin App Bar -->
+      <header class="admin-header no-print">
+        <div class="brand-group">
+          <div class="brand-top-row">
+            <span class="brand-badge">Admin Portal</span>
+            <button id="deviceIndicator" class="device-badge" title="Click to toggle device view">💻 Laptop Mode</button>
+          </div>
+          <h1>Exam Controller Dashboard</h1>
+        </div>
+        <div id="authActions" class="hidden">
+          <button id="logoutBtn" class="btn btn-ghost btn-sm">Log out</button>
+        </div>
+      </header>
+
+      <!-- Login View -->
+      <section id="loginView" class="card login-card no-print">
+        <div class="login-header">
+          <div class="login-icon">🔐</div>
+          <h2>Controller Sign In</h2>
+          <p class="sub">Enter the administrator password to manage seating allocations.</p>
+        </div>
+
+        <form id="loginForm" onsubmit="return false;">
+          <div class="form-group">
+            <label for="password">Administrator Password</label>
+            <input
+              id="password"
+              type="password"
+              autocomplete="current-password"
+              placeholder="Enter password"
+              required
+            >
+          </div>
+          <button id="loginBtn" type="submit" class="btn btn-primary btn-block">Sign In</button>
+        </form>
+        <div id="loginMsg" class="msg hidden" role="alert"></div>
+      </section>
+
+      <!-- Authenticated Main Dashboard -->
+      <section id="dashboard" class="hidden">
+        <!-- Quick Statistics Tiles -->
+        <div class="stats-grid no-print">
+          <div class="stat-card">
+            <span class="stat-label">Total Allocations</span>
+            <b id="statStudents" class="stat-val">0</b>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Classes / Rooms</span>
+            <b id="statRooms" class="stat-val">0</b>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Exam Dates</span>
+            <b id="statDates" class="stat-val">0</b>
+          </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <nav class="tab-scroller no-print">
+          <div class="tab-nav" role="tablist">
+            <button class="tab-btn active" data-tab="tabExcel" role="tab">
+              <span class="tab-icon">📊</span>
+              <span>Spreadsheet & Manual</span>
+            </button>
+            <button class="tab-btn" data-tab="tabPrint" role="tab">
+              <span class="tab-icon">🖨️</span>
+              <span>Print Seating</span>
+            </button>
+            <button class="tab-btn" data-tab="tabUpload" role="tab">
+              <span class="tab-icon">📁</span>
+              <span>CSV Upload & Tools</span>
+            </button>
+          </div>
+        </nav>
+
+        <!-- Tab 1: Spreadsheet & Manual Record Entry -->
+        <div id="tabExcel" class="tab-content no-print">
+          <!-- Manual Allocation Entry Card (Adaptive: classic horizontal on laptop, collapsible on mobile) -->
+          <div class="card entry-card" id="manualEntryContainer">
+            <!-- Mobile drawer header (hidden on laptop via CSS) -->
+            <div class="entry-header mobile-only" id="toggleEntryBtn">
+              <div class="entry-title-wrap">
+                <span class="entry-icon">➕</span>
+                <div>
+                  <h3 class="entry-title">Manual Record Entry</h3>
+                  <p class="entry-sub">Add or update single student seating</p>
+                </div>
+              </div>
+              <span class="toggle-indicator" id="entryToggleIcon">▼</span>
+            </div>
+
+            <!-- Laptop classic legend (hidden on mobile via CSS) -->
+            <div class="laptop-legend-row laptop-only">
+              <label class="laptop-entry-legend">➕ Manual Record Entry (Add / Update Allocation)</label>
+            </div>
+
+            <div class="entry-form-body" id="entryFormBody">
+              <form id="manualForm" onsubmit="return false;">
+                <div class="form-grid-laptop">
+                  <div class="form-group">
+                    <label for="mRegNo">Register No *</label>
+                    <input id="mRegNo" type="text" placeholder="e.g. BCA2301" autocapitalize="characters" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="mName">Student Name</label>
+                    <input id="mName" type="text" placeholder="e.g. Rahul M">
+                  </div>
+                  <div class="form-group">
+                    <label for="mRoom">Class / Room *</label>
+                    <input id="mRoom" type="text" placeholder="e.g. Room 101" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="mSeat">Seat No</label>
+                    <input id="mSeat" type="text" placeholder="e.g. A12">
+                  </div>
+                  <div class="form-group">
+                    <label for="mExam">Exam / Subject</label>
+                    <input id="mExam" type="text" placeholder="e.g. Data Structures">
+                  </div>
+                  <div class="form-group">
+                    <label for="mDate">Exam Date</label>
+                    <input id="mDate" type="date">
+                  </div>
+                  <div class="form-group">
+                    <label for="mSession">Session</label>
+                    <select id="mSession">
+                      <option value="FN">FN (Morning)</option>
+                      <option value="AN">AN (Afternoon)</option>
+                      <option value="">General</option>
+                    </select>
+                  </div>
+                  <div class="form-group form-group-action">
+                    <button id="addRecordBtn" type="button" class="btn btn-primary btn-block">Add Record</button>
+                  </div>
+                </div>
+              </form>
+              <div id="manualMsg" class="msg hidden" role="alert"></div>
+            </div>
+          </div>
+
+          <!-- Spreadsheet Table & Controls -->
+          <div class="card grid-card">
+            <div class="filter-toolbar">
+              <div class="search-input-wrap">
+                <input id="searchKeyword" type="text" placeholder="🔍 Search reg no, name, exam...">
+              </div>
+              <div class="filter-dropdowns">
+                <select id="filterRoom" aria-label="Filter by Room">
+                  <option value="">All Rooms / Classes</option>
+                </select>
+                <select id="filterDate" aria-label="Filter by Date">
+                  <option value="">All Dates</option>
+                </select>
+              </div>
+              <div class="toolbar-actions">
+                <button id="resetFiltersBtn" class="btn btn-ghost btn-sm">Reset</button>
+                <a href="/api/admin/export" id="exportBtn" class="btn btn-secondary btn-sm" download="allocations.csv">
+                  <span>📥 Export CSV</span>
+                </a>
+                <button id="refreshTableBtn" class="btn btn-ghost btn-sm" aria-label="Refresh">🔄</button>
+              </div>
+            </div>
+
+            <div class="view-meta-row">
+              <div id="tableSummary" class="table-summary">Showing 0 records</div>
+              <div class="active-mode-badge" id="activeModeBadge">Laptop View</div>
+            </div>
+
+            <!-- Desktop & Laptop View: Excel Table with Inline Editing -->
+            <div class="table-wrapper" id="laptopTableWrapper">
+              <table class="excel-table" id="allocationsTable">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Register No</th>
+                    <th>Student Name</th>
+                    <th>Class / Room</th>
+                    <th>Seat No</th>
+                    <th>Exam / Subject</th>
+                    <th>Date</th>
+                    <th>Session</th>
+                    <th style="text-align: center;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="tableBody">
+                  <tr><td colspan="9" style="text-align: center; color: var(--muted); padding: 24px;">Loading allocations...</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Mobile View: Touch Cards -->
+            <div id="mobileCardsContainer" class="mobile-cards-list"></div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Print Class / Room Seating Arrangement -->
+        <div id="tabPrint" class="tab-content hidden">
+          <div class="card no-print">
+            <div class="section-title-wrap">
+              <h3>Print Class Seating Arrangement</h3>
+              <p class="sub">Generate a printable door sheet or invigilator attendance chart for a specific classroom.</p>
+            </div>
+
+            <div class="print-form-grid">
+              <div class="form-group">
+                <label for="printRoomSelect">Select Class / Room *</label>
+                <select id="printRoomSelect">
+                  <option value="">-- Choose Classroom / Hall --</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="printDateSelect">Exam Date</label>
+                <select id="printDateSelect">
+                  <option value="">-- All Dates / Today --</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="printSessionSelect">Session</label>
+                <select id="printSessionSelect">
+                  <option value="">All Sessions</option>
+                  <option value="FN">FN (Morning)</option>
+                  <option value="AN">AN (Afternoon)</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="margin-top: 14px;">
+              <button id="generateSheetBtn" class="btn btn-primary btn-block-mobile">
+                <span>📄 Generate Seating Sheet</span>
+              </button>
+            </div>
+            <div id="printMsg" class="msg hidden" role="alert"></div>
+          </div>
+
+          <!-- Printable Seating Sheet Container -->
+          <div id="sheetContainer" class="card print-sheet-card hidden">
+            <div class="sheet-action-bar no-print">
+              <div class="sheet-meta-status">Ready to print</div>
+              <button id="triggerPrintBtn" class="btn btn-primary btn-sm">
+                <span>🖨️ Print Sheet / Save PDF</span>
+              </button>
+            </div>
+
+            <div class="print-sheet" id="printableArea">
+              <div class="sheet-header">
+                <h2>EXAMINATION SEATING ARRANGEMENT</h2>
+                <h3>Classroom Attendance & Seating Chart</h3>
+                <div class="sheet-info-grid">
+                  <div><strong>Class / Room:</strong> <span id="sheetRoomName">-</span></div>
+                  <div><strong>Exam Date:</strong> <span id="sheetDate">-</span></div>
+                  <div><strong>Session:</strong> <span id="sheetSession">-</span></div>
+                  <div><strong>Total Candidates:</strong> <span id="sheetTotal">-</span></div>
+                </div>
+              </div>
+
+              <div class="table-wrapper">
+                <table class="sheet-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 50px;" class="text-center">Sl</th>
+                      <th style="width: 90px;">Seat No</th>
+                      <th style="width: 140px;">Register No</th>
+                      <th>Student Name</th>
+                      <th>Exam / Subject</th>
+                      <th style="width: 140px;">Student Signature</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sheetTableBody">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="sheet-footer">
+                <div class="signature-box">
+                  <div class="sig-line"></div>
+                  <div>Invigilator's Signature</div>
+                </div>
+                <div class="signature-box">
+                  <div class="sig-line"></div>
+                  <div>Chief Superintendent</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Bulk CSV Upload & Clear Data -->
+        <div id="tabUpload" class="tab-content hidden no-print">
+          <div class="card upload-card">
+            <h3>Upload Allocation CSV File</h3>
+            <p class="sub">Batch import seating allocations using standard spreadsheet CSV export.</p>
+            <p class="format-hint">
+              Required headers: <code>register_no</code>, <code>room</code>.<br>
+              Optional headers: <code>name</code>, <code>seat_no</code>, <code>exam_name</code>, <code>exam_date</code>, <code>session</code>.
+            </p>
+            <div class="sample-link-wrap">
+              <a href="/sample/allocations.csv" download class="sample-link">📥 Download Sample CSV Template</a>
+            </div>
+
+            <div class="upload-dropzone">
+              <input id="file" type="file" accept=".csv,text/csv">
+            </div>
+
+            <div class="mode-selector">
+              <label class="radio-label">
+                <input type="radio" name="mode" value="replace" checked>
+                <span><strong>Replace All:</strong> Clear existing and insert uploaded data</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="mode" value="append">
+                <span><strong>Append:</strong> Add or update matching records only</span>
+              </label>
+            </div>
+
+            <button id="uploadBtn" class="btn btn-primary btn-block-mobile">
+              <span>Upload and Process CSV</span>
+            </button>
+            <div id="uploadMsg" class="msg hidden" role="alert"></div>
+            <ul id="uploadErrors" class="errors"></ul>
+          </div>
+
+          <div class="card danger-card">
+            <h3>Reset Database</h3>
+            <p class="sub">Permanently delete all seating arrangements from the system.</p>
+            <button id="clearBtn" class="btn btn-danger btn-block-mobile">
+              <span>🗑️ Delete All Allocations</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Edit Modal (Used in Mobile View) -->
+      <div id="editModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-backdrop" id="modalBackdrop"></div>
+        <div class="modal-dialog">
+          <div class="modal-header">
+            <h3 id="modalTitle">Edit Seating Allocation</h3>
+            <button class="modal-close-btn" id="modalCloseBtn" aria-label="Close">✕</button>
+          </div>
+          <div class="modal-body">
+            <form id="editForm" onsubmit="return false;">
+              <input type="hidden" id="modalOrigReg">
+              <input type="hidden" id="modalOrigDate">
+              <input type="hidden" id="modalOrigSession">
+
+              <div class="form-group">
+                <label for="modalReg">Register No</label>
+                <input id="modalReg" type="text" readonly style="background: #f1f5f9; color: var(--muted);">
+              </div>
+              <div class="form-group">
+                <label for="modalName">Student Name</label>
+                <input id="modalName" type="text" placeholder="Student name">
+              </div>
+              <div class="form-group">
+                <label for="modalRoom">Class / Room *</label>
+                <input id="modalRoom" type="text" required placeholder="Room number or hall">
+              </div>
+              <div class="form-group">
+                <label for="modalSeat">Seat Number</label>
+                <input id="modalSeat" type="text" placeholder="Seat number">
+              </div>
+              <div class="form-group">
+                <label for="modalExam">Exam / Subject</label>
+                <input id="modalExam" type="text" placeholder="Exam subject">
+              </div>
+              <div class="form-group">
+                <label for="modalDate">Exam Date</label>
+                <input id="modalDate" type="date">
+              </div>
+              <div class="form-group">
+                <label for="modalSession">Session</label>
+                <select id="modalSession">
+                  <option value="FN">FN (Morning)</option>
+                  <option value="AN">AN (Afternoon)</option>
+                  <option value="">None / General</option>
+                </select>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button id="modalSaveBtn" class="btn btn-primary">Save Changes</button>
+            <button id="modalCancelBtn" class="btn btn-ghost">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <footer class="app-footer no-print">
+        <a href="/" class="admin-link">← Return to Student Search</a>
+      </footer>
+    </main>
+  </div>
+  <script src="/js/admin.js"></script>
+</body>
+</html>
