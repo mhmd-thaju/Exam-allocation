@@ -98,6 +98,7 @@ The project uses `server.js` as its Express entry point. The Vercel function mus
 
 `server.js` exports the Express app for Vercel and starts the HTTP listener only when run locally.
 `better-sqlite3` is a development-only dependency for local SQLite. The install command excludes it from Vercel builds; deployed requests use Turso instead.
+The project pins Node.js to 22.x so local SQLite tooling and deployment use a supported Node runtime rather than Node 26.
 
 ---
 
