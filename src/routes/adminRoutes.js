@@ -6,59 +6,62 @@ const { requireAdmin, login, logout } = require('../middleware/auth');
 const { loginLimiter } = require('../middleware/rateLimit');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: config.maxUploadBytes } });
+const asyncRoute = (handler) => (req, res, next) => {
+  Promise.resolve(handler(req, res, next)).catch(next);
+};
 
 router.post('/login', loginLimiter, login);
 router.post('/logout', logout);
 
-router.get('/stats', requireAdmin, (req, res) => res.json(service.stats()));
+router.get('/stats', requireAdmin, asyncRoute(async (req, res) => res.json(await service.stats())));
 
-router.get('/allocations', requireAdmin, (req, res) => {
+router.get('/allocations', requireAdmin, async (req, res) => {
   try {
-    const list = service.listAllocations(req.query);
+    const list = await service.listAllocations(req.query);
     res.json({ allocations: list });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-router.post('/records', requireAdmin, (req, res) => {
+router.post('/records', requireAdmin, async (req, res) => {
   try {
     if (Array.isArray(req.body.records)) {
-      const result = service.saveManualRecords(req.body.records);
+      const result = await service.saveManualRecords(req.body.records);
       return res.json(result);
     }
-    const saved = service.saveManualRecord(req.body);
+    const saved = await service.saveManualRecord(req.body);
     res.json({ ok: true, record: saved });
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
 });
 
-router.delete('/record', requireAdmin, (req, res) => {
+router.delete('/record', requireAdmin, async (req, res) => {
   try {
     const { register_no, exam_date, session } = req.body || {};
     if (!register_no) return res.status(400).json({ error: 'Register number is required.' });
-    service.deleteRecord(register_no, exam_date, session);
+    await service.deleteRecord(register_no, exam_date, session);
     res.json({ ok: true });
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
 });
 
-router.get('/rooms', requireAdmin, (req, res) => {
+router.get('/rooms', requireAdmin, async (req, res) => {
   try {
-    const filters = service.getDistinctFilters();
+    const filters = await service.getDistinctFilters();
     res.json(filters);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-router.get('/seating', requireAdmin, (req, res) => {
+router.get('/seating', requireAdmin, async (req, res) => {
   try {
     const { room, date, session } = req.query;
     if (!room) return res.status(400).json({ error: 'Please specify a room or class.' });
-    const students = service.getSeatingArrangement({ room, date, session });
+    const students = await service.getSeatingArrangement({ room, date, session });
     res.json({
       room,
       date: date || '',
@@ -71,9 +74,9 @@ router.get('/seating', requireAdmin, (req, res) => {
   }
 });
 
-router.get('/export', requireAdmin, (req, res) => {
+router.get('/export', requireAdmin, async (req, res) => {
   try {
-    const csvData = service.exportCsv();
+    const csvData = await service.exportCsv();
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename="allocations.csv"');
     res.send(csvData);
@@ -82,19 +85,19 @@ router.get('/export', requireAdmin, (req, res) => {
   }
 });
 
-router.post('/upload', requireAdmin, upload.single('file'), (req, res) => {
+router.post('/upload', requireAdmin, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Attach a CSV file.' });
   try {
-    const { status, body } = service.importCsv(req.file.buffer, req.body.mode);
+    const { status, body } = await service.importCsv(req.file.buffer, req.body.mode);
     res.status(status).json(body);
   } catch (e) {
     res.status(400).json({ error: 'Could not read the CSV file: ' + e.message });
   }
 });
 
-router.delete('/allocations', requireAdmin, (req, res) => {
-  service.clearAll();
+router.delete('/allocations', requireAdmin, asyncRoute(async (req, res) => {
+  await service.clearAll();
   res.json({ ok: true });
-});
+}));
 
 module.exports = router;

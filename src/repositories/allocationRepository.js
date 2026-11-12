@@ -1,56 +1,66 @@
 const db = require('../db');
 
-const findStmt = db.prepare(
-  `SELECT register_no, name, room, seat_no, exam_name, exam_date, session
-     FROM allocations WHERE register_no = ? ORDER BY exam_date, session`
-);
-
-const findTodayStmt = db.prepare(
-  `SELECT register_no, name, room, seat_no, exam_name, exam_date, session
-     FROM allocations
-    WHERE register_no = ? AND (exam_date = ? OR exam_date = '')
-    ORDER BY session`
-);
-
-const countStmt = db.prepare('SELECT COUNT(*) AS n FROM allocations');
-const roomsStmt = db.prepare('SELECT COUNT(DISTINCT room) AS n FROM allocations');
-const clearStmt = db.prepare('DELETE FROM allocations');
-
-const upsertStmt = db.prepare(
-  `INSERT INTO allocations (register_no, name, room, seat_no, exam_name, exam_date, session)
+const selectFields = 'register_no, name, room, seat_no, exam_name, exam_date, session';
+const upsertSql =
+  `INSERT INTO allocations (${selectFields})
    VALUES (@register_no, @name, @room, @seat_no, @exam_name, @exam_date, @session)
    ON CONFLICT(register_no, exam_date, session) DO UPDATE SET
      name = excluded.name, room = excluded.room, seat_no = excluded.seat_no,
-     exam_name = excluded.exam_name`
-);
+     exam_name = excluded.exam_name`;
 
-const deleteRecordStmt = db.prepare(
-  `DELETE FROM allocations WHERE register_no = ? AND exam_date = ? AND session = ?`
-);
+async function all(sql, args = []) {
+  const result = await db.execute({ sql, args });
+  return result.rows;
+}
 
-const allStmt = db.prepare(
-  `SELECT register_no, name, room, seat_no, exam_name, exam_date, session
-     FROM allocations ORDER BY exam_date, session, room, seat_no, register_no`
-);
+async function findByRegisterNo(regNo) {
+  return all(
+    `SELECT ${selectFields} FROM allocations
+      WHERE register_no = ? ORDER BY exam_date, session`,
+    [regNo]
+  );
+}
 
-const distinctRoomsStmt = db.prepare(
-  `SELECT DISTINCT room FROM allocations WHERE room != '' ORDER BY room`
-);
+async function findTodayByRegisterNo(regNo, date) {
+  return all(
+    `SELECT ${selectFields} FROM allocations
+      WHERE register_no = ? AND (exam_date = ? OR exam_date = '')
+      ORDER BY session`,
+    [regNo, date]
+  );
+}
 
-const distinctDatesStmt = db.prepare(
-  `SELECT DISTINCT exam_date FROM allocations WHERE exam_date != '' ORDER BY exam_date`
-);
+async function upsertRecord(record) {
+  return db.execute({ sql: upsertSql, args: record });
+}
 
-const distinctSessionsStmt = db.prepare(
-  `SELECT DISTINCT session FROM allocations WHERE session != '' ORDER BY session`
-);
+async function deleteRecord(regNo, date, session) {
+  return db.execute({
+    sql: 'DELETE FROM allocations WHERE register_no = ? AND exam_date = ? AND session = ?',
+    args: [regNo, date, session]
+  });
+}
 
-const insertMany = db.transaction((rows, replace) => {
-  if (replace) clearStmt.run();
-  for (const r of rows) upsertStmt.run(r);
-});
+async function saveAll(rows, { replace }) {
+  const statements = [];
+  if (replace) statements.push({ sql: 'DELETE FROM allocations' });
+  for (const row of rows) statements.push({ sql: upsertSql, args: row });
+  await db.batch(statements);
+}
 
-function listAllocations({ search = '', room = '', date = '', limit = 1000, offset = 0 } = {}) {
+async function clear() {
+  return db.execute({ sql: 'DELETE FROM allocations' });
+}
+
+async function stats() {
+  const [students, rooms] = await Promise.all([
+    all('SELECT COUNT(*) AS n FROM allocations'),
+    all('SELECT COUNT(DISTINCT room) AS n FROM allocations')
+  ]);
+  return { students: Number(students[0].n), rooms: Number(rooms[0].n) };
+}
+
+async function listAllocations({ search = '', room = '', date = '', limit = 1000, offset = 0 } = {}) {
   let sql = 'SELECT register_no, name, room, seat_no, exam_name, exam_date, session FROM allocations WHERE 1=1';
   const params = [];
   if (search) {
@@ -68,10 +78,10 @@ function listAllocations({ search = '', room = '', date = '', limit = 1000, offs
   }
   sql += ' ORDER BY exam_date DESC, session, room, seat_no, register_no LIMIT ? OFFSET ?';
   params.push(limit, offset);
-  return db.prepare(sql).all(...params);
+  return all(sql, params);
 }
 
-function getSeating({ room, exam_date, session } = {}) {
+async function getSeating({ room, exam_date, session } = {}) {
   let sql = 'SELECT register_no, name, room, seat_no, exam_name, exam_date, session FROM allocations WHERE room = ?';
   const params = [room];
   if (exam_date) {
@@ -83,23 +93,39 @@ function getSeating({ room, exam_date, session } = {}) {
     params.push(session);
   }
   sql += ' ORDER BY seat_no, register_no';
-  return db.prepare(sql).all(...params);
+  return all(sql, params);
+}
+
+async function getAll() {
+  return all(
+    `SELECT ${selectFields} FROM allocations
+      ORDER BY exam_date, session, room, seat_no, register_no`
+  );
+}
+
+async function getDistinctFilters() {
+  const [rooms, dates, sessions] = await Promise.all([
+    all("SELECT DISTINCT room FROM allocations WHERE room != '' ORDER BY room"),
+    all("SELECT DISTINCT exam_date FROM allocations WHERE exam_date != '' ORDER BY exam_date"),
+    all("SELECT DISTINCT session FROM allocations WHERE session != '' ORDER BY session")
+  ]);
+  return {
+    rooms: rooms.map((row) => row.room),
+    dates: dates.map((row) => row.exam_date),
+    sessions: sessions.map((row) => row.session)
+  };
 }
 
 module.exports = {
-  findByRegisterNo: (regNo) => findStmt.all(regNo),
-  findTodayByRegisterNo: (regNo, date) => findTodayStmt.all(regNo, date),
-  upsertRecord: (rec) => upsertStmt.run(rec),
-  deleteRecord: (regNo, date, session) => deleteRecordStmt.run(regNo, date || '', session || ''),
-  saveAll: (rows, { replace }) => insertMany(rows, replace),
-  clear: () => clearStmt.run(),
-  stats: () => ({ students: countStmt.get().n, rooms: roomsStmt.get().n }),
+  findByRegisterNo,
+  findTodayByRegisterNo,
+  upsertRecord,
+  deleteRecord,
+  saveAll,
+  clear,
+  stats,
   listAllocations,
-  getAll: () => allStmt.all(),
-  getDistinctFilters: () => ({
-    rooms: distinctRoomsStmt.all().map((r) => r.room),
-    dates: distinctDatesStmt.all().map((d) => d.exam_date),
-    sessions: distinctSessionsStmt.all().map((s) => s.session)
-  }),
+  getAll,
+  getDistinctFilters,
   getSeating
 };

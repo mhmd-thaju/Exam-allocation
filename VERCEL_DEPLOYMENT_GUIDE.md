@@ -75,7 +75,7 @@ CREATE INDEX IF NOT EXISTS idx_allocations_date ON allocations(exam_date);
 
 ### Step 3: Add Vercel Serverless Configuration
 
-Create a `vercel.json` file in the root directory:
+The project uses `server.js` as its Express entry point. The Vercel function must point to that file:
 
 ```json
 {
@@ -89,11 +89,13 @@ Create a `vercel.json` file in the root directory:
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "server.js"
+      "dest": "/server.js"
     }
   ]
 }
 ```
+
+`server.js` exports the Express app for Vercel and starts the HTTP listener only when run locally.
 
 ---
 

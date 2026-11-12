@@ -49,10 +49,13 @@ function getLocalIp() {
   return 'localhost';
 }
 
-const localIp = getLocalIp();
+if (require.main === module) {
+  const localIp = getLocalIp();
+  app.listen(config.port, '0.0.0.0', () => {
+    console.log(`Exam allocation running on:`);
+    console.log(`- Local:   http://localhost:${config.port}`);
+    console.log(`- Network: http://${localIp}:${config.port}`);
+  });
+}
 
-app.listen(config.port, '0.0.0.0', () => {
-  console.log(`Exam allocation running on:`);
-  console.log(`- Local:   http://localhost:${config.port}`);
-  console.log(`- Network: http://${localIp}:${config.port}`);
-});
+module.exports = app;
