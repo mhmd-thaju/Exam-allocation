@@ -124,7 +124,7 @@ router.get('/audit', auditAdminAction('audit.log.read'), asyncRoute(async (req, 
   const offset = Number.isFinite(requestedOffset) && requestedOffset > 0
     ? Math.floor(requestedOffset)
     : 0;
-  res.json({ events: await listEvents({ limit, offset, excludeId: req.auditEventId }) });
+  res.json({ events: await listEvents({ limit, offset, excludeId: req.auditEventKey }) });
 }));
 
 module.exports = router;

@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const db = require('../db');
 
 let tableReady;
+let integerPrimaryKey;
 
 async function ensureTable() {
   if (!tableReady) {
@@ -16,7 +17,8 @@ async function ensureTable() {
 async function migrateTable() {
   await db.execute({
     sql: `CREATE TABLE IF NOT EXISTS admin_audit_log (
-      id TEXT PRIMARY KEY,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_key TEXT,
       occurred_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
       completed_at TEXT,
       actor TEXT NOT NULL,
@@ -31,6 +33,7 @@ async function migrateTable() {
   const schema = await db.execute({ sql: "PRAGMA table_info('admin_audit_log')" });
   const columns = new Set(schema.rows.map((column) => column.name));
   const migrations = [
+    ['event_key', 'TEXT'],
     ['completed_at', 'TEXT'],
     ['status_code', 'INTEGER']
   ];
@@ -46,12 +49,19 @@ async function migrateTable() {
     }
   }
 
+  const updatedSchema = await db.execute({ sql: "PRAGMA table_info('admin_audit_log')" });
+  const idColumn = updatedSchema.rows.find((column) => column.name === 'id');
+  integerPrimaryKey = Boolean(idColumn && idColumn.type.toUpperCase() === 'INTEGER' && idColumn.pk);
+
   await db.batch([
     {
       sql: 'CREATE INDEX IF NOT EXISTS idx_admin_audit_log_time ON admin_audit_log(occurred_at)'
     },
     {
       sql: 'CREATE INDEX IF NOT EXISTS idx_admin_audit_log_actor_time ON admin_audit_log(actor, occurred_at)'
+    },
+    {
+      sql: 'CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_audit_log_event_key ON admin_audit_log(event_key)'
     }
   ]);
 }
@@ -66,43 +76,66 @@ function normalizeTarget(target) {
   return String(target).slice(0, 256);
 }
 
-async function startAction({ actor, action, target = null, details = null }) {
-  await ensureTable();
-  const id = crypto.randomUUID();
-  await db.execute({
-    sql: `INSERT INTO admin_audit_log (id, actor, action, target, outcome, details)
-          VALUES (?, ?, ?, ?, 'pending', ?)`,
-    args: [id, actor || 'anonymous', action, normalizeTarget(target), serializeDetails(details)]
+async function insertEvent({ eventKey, actor, action, target, outcome, statusCode, details, pending = false }) {
+  const normalizedActor = actor || 'anonymous';
+  const normalizedTarget = normalizeTarget(target);
+  const serializedDetails = serializeDetails(details);
+
+  if (integerPrimaryKey) {
+    return db.execute({
+      sql: pending
+        ? `INSERT INTO admin_audit_log (event_key, actor, action, target, outcome, details)
+           VALUES (?, ?, ?, ?, 'pending', ?)`
+        : `INSERT INTO admin_audit_log
+             (event_key, actor, action, target, outcome, status_code, details, completed_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`,
+      args: pending
+        ? [eventKey, normalizedActor, action, normalizedTarget, serializedDetails]
+        : [eventKey, normalizedActor, action, normalizedTarget, outcome, statusCode, serializedDetails]
+    });
+  }
+
+  return db.execute({
+    sql: pending
+      ? `INSERT INTO admin_audit_log (id, event_key, actor, action, target, outcome, details)
+         VALUES (?, ?, ?, ?, ?, 'pending', ?)`
+      : `INSERT INTO admin_audit_log
+           (id, event_key, actor, action, target, outcome, status_code, details, completed_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`,
+    args: pending
+      ? [eventKey, eventKey, normalizedActor, action, normalizedTarget, serializedDetails]
+      : [eventKey, eventKey, normalizedActor, action, normalizedTarget, outcome, statusCode, serializedDetails]
   });
-  return id;
 }
 
-async function completeAction(id, statusCode) {
+async function startAction({ actor, action, target = null, details = null }) {
+  await ensureTable();
+  const eventKey = crypto.randomUUID();
+  await insertEvent({ eventKey, actor, action, target, details, pending: true });
+  return eventKey;
+}
+
+async function completeAction(eventKey, statusCode) {
   const outcome = statusCode >= 400 ? 'failure' : 'success';
   await db.execute({
     sql: `UPDATE admin_audit_log
              SET completed_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
                  outcome = ?, status_code = ?
-           WHERE id = ?`,
-    args: [outcome, statusCode, id]
+           WHERE event_key = ?`,
+    args: [outcome, statusCode, eventKey]
   });
 }
 
 async function recordEvent({ actor, action, target = null, outcome, statusCode = null, details = null }) {
   await ensureTable();
-  await db.execute({
-    sql: `INSERT INTO admin_audit_log
-            (id, actor, action, target, outcome, status_code, details, completed_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`,
-    args: [
-      crypto.randomUUID(),
-      actor || 'anonymous',
-      action,
-      normalizeTarget(target),
-      outcome,
-      statusCode,
-      serializeDetails(details)
-    ]
+  await insertEvent({
+    eventKey: crypto.randomUUID(),
+    actor,
+    action,
+    target,
+    outcome,
+    statusCode,
+    details
   });
 }
 
@@ -112,7 +145,7 @@ async function listEvents({ limit = 100, offset = 0, excludeId = null } = {}) {
     sql: `SELECT id, occurred_at, completed_at, actor, action, target,
                  outcome, status_code, details
             FROM admin_audit_log
-           WHERE (? IS NULL OR id != ?)
+           WHERE (? IS NULL OR event_key != ?)
            ORDER BY occurred_at DESC, id DESC
            LIMIT ? OFFSET ?`,
     args: [excludeId, excludeId, limit, offset]
@@ -142,20 +175,20 @@ function auditAdminAction(action, getTarget = () => null, getDetails = () => nul
     }
 
     try {
-      const id = await startAction({
+      const eventKey = await startAction({
         actor,
         action,
         target: getTarget(req),
         details: getDetails(req)
       });
-      req.auditEventId = id;
+      req.auditEventKey = eventKey;
       let ending = false;
       const originalEnd = res.end.bind(res);
       res.end = (...args) => {
         if (ending) return res;
         ending = true;
         const statusCode = res.statusCode;
-        completeAction(id, statusCode)
+        completeAction(eventKey, statusCode)
           .catch((error) => console.error('Could not complete admin audit event:', error))
           .finally(() => originalEnd(...args));
         return res;
