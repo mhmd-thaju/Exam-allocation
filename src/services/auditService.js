@@ -5,32 +5,55 @@ let tableReady;
 
 async function ensureTable() {
   if (!tableReady) {
-    tableReady = db.batch([
-      {
-        sql: `CREATE TABLE IF NOT EXISTS admin_audit_log (
-          id TEXT PRIMARY KEY,
-          occurred_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-          completed_at TEXT,
-          actor TEXT NOT NULL,
-          action TEXT NOT NULL,
-          target TEXT,
-          outcome TEXT NOT NULL,
-          status_code INTEGER,
-          details TEXT
-        )`
-      },
-      {
-        sql: 'CREATE INDEX IF NOT EXISTS idx_admin_audit_log_time ON admin_audit_log(occurred_at)'
-      },
-      {
-        sql: 'CREATE INDEX IF NOT EXISTS idx_admin_audit_log_actor_time ON admin_audit_log(actor, occurred_at)'
-      }
-    ]).catch((error) => {
+    tableReady = migrateTable().catch((error) => {
       tableReady = null;
       throw error;
     });
   }
   await tableReady;
+}
+
+async function migrateTable() {
+  await db.execute({
+    sql: `CREATE TABLE IF NOT EXISTS admin_audit_log (
+      id TEXT PRIMARY KEY,
+      occurred_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+      completed_at TEXT,
+      actor TEXT NOT NULL,
+      action TEXT NOT NULL,
+      target TEXT,
+      outcome TEXT NOT NULL,
+      status_code INTEGER,
+      details TEXT
+    )`
+  });
+
+  const schema = await db.execute({ sql: "PRAGMA table_info('admin_audit_log')" });
+  const columns = new Set(schema.rows.map((column) => column.name));
+  const migrations = [
+    ['completed_at', 'TEXT'],
+    ['status_code', 'INTEGER']
+  ];
+
+  for (const [name, type] of migrations) {
+    if (!columns.has(name)) {
+      try {
+        await db.execute({ sql: `ALTER TABLE admin_audit_log ADD COLUMN ${name} ${type}` });
+      } catch (error) {
+        const updatedSchema = await db.execute({ sql: "PRAGMA table_info('admin_audit_log')" });
+        if (!updatedSchema.rows.some((column) => column.name === name)) throw error;
+      }
+    }
+  }
+
+  await db.batch([
+    {
+      sql: 'CREATE INDEX IF NOT EXISTS idx_admin_audit_log_time ON admin_audit_log(occurred_at)'
+    },
+    {
+      sql: 'CREATE INDEX IF NOT EXISTS idx_admin_audit_log_actor_time ON admin_audit_log(actor, occurred_at)'
+    }
+  ]);
 }
 
 function serializeDetails(details) {
