@@ -70,6 +70,37 @@ body {
   max-width: 1140px;
 }
 
+.student-admin-link {
+  display: none;
+}
+
+@media (min-width: 992px) {
+  .is-laptop .student-admin-link {
+    display: inline-flex;
+    align-items: center;
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 7px 12px;
+    color: var(--primary);
+    background: var(--primary-light);
+    border: 1px solid var(--primary-border);
+    border-radius: var(--radius-full);
+    font-weight: 600;
+  }
+
+  .is-laptop .student-admin-link:hover {
+    color: var(--primary-hover);
+    background: #dbeafe;
+    text-decoration: none;
+  }
+
+  .student-page {
+    position: relative;
+    padding-top: 40px;
+  }
+}
+
 /* Typography */
 h1 { font-size: 1.6rem; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; }
 h2 { font-size: 1.3rem; font-weight: 700; color: #0f172a; }
@@ -1027,6 +1058,8 @@ input:focus, select:focus {
    CSS Fallback Breakpoint (Pure CSS)
 ------------------------------------- */
 @media (max-width: 991px) {
+  .student-admin-link { display: none !important; }
+
   :not(.is-laptop) #manualEntryContainer {
     padding: 0;
   }

@@ -180,18 +180,41 @@ module.exports = db;
    - Select your `exam-allocation` repository and click **Import**.
 
 3. **Configure Environment Variables in Vercel**:
-   Under **Environment Variables**, add:
+   Under **Project → Settings → Environment Variables**, add:
    
    | Variable Name | Value | Purpose |
    |---|---|---|
-   | `ADMIN_PASSWORD` | *(e.g. your secure admin password)* | Admin panel login password |
-   | `SESSION_SECRET` | *(e.g. any long random string)* | HMAC cookie signing secret |
+   | `ADMIN_USERS` | JSON array of individual username/salt/passwordHash records | Allowlist of authorized controllers |
+   | `SESSION_SECRET` | Output of `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` | HMAC cookie signing secret; use a unique value at least 32 bytes long |
    | `TURSO_DATABASE_URL` | `libsql://exam-allocation-xxx.turso.io` | Turso DB endpoint |
    | `TURSO_AUTH_TOKEN` | `eyJh...` | Turso authentication token |
+
+   Create a separate credential record for each authorized person. In a terminal at the project root, run:
+   ```bash
+   node scripts/create-admin-user.js controller1
+   ```
+   Enter a unique password of at least 14 characters when prompted. The script prints one JSON record; combine the records into a JSON array and set that entire array as `ADMIN_USERS`. Only its salted scrypt hash is stored in Vercel, not the password. Remove the old `ADMIN_PASSWORD` variable. To revoke access for one person, remove their record from `ADMIN_USERS` and redeploy; their existing session is then rejected.
+
+   Vercel environment variable changes do not alter an already-created deployment. After changing credentials or the session secret, redeploy so the new values take effect. Failed and successful sign-in attempts are limited per client IP using Turso-backed counters on Vercel, so the limit is shared across serverless instances.
 
 4. **Click Deploy**:
    - Vercel will build your project in ~30 seconds.
    - You will receive a live URL: `https://exam-allocation-yourname.vercel.app`.
+
+### Admin Activity Audit Log
+
+The application creates `admin_audit_log` and its indexes automatically in the configured Turso database. It records successful and failed sign-ins, sign-in throttling, blocked cross-origin requests, and authenticated admin reads and changes. Events include the acting username (or `anonymous` for unauthenticated attempts), action, target when applicable, outcome, HTTP status, and limited non-secret metadata. Passwords, session cookies, and uploaded CSV contents are never written to the audit log.
+
+An authenticated controller can review recent events with `GET /api/admin/audit?limit=100&offset=0`. The endpoint returns at most 200 events per request. Audit events are recorded before protected actions begin and finalized with the response status; an event left as `pending` indicates the request did not complete or the final audit update failed. The same records can be queried directly in Turso's SQL editor:
+
+```sql
+SELECT occurred_at, completed_at, actor, action, target, outcome, status_code, details
+FROM admin_audit_log
+ORDER BY occurred_at DESC
+LIMIT 100;
+```
+
+Audit history is stored in the same Turso database as allocations. Restrict access to the Turso account/token, and establish a retention policy if the log grows beyond the database plan's storage allowance.
 
 ---
 
@@ -218,7 +241,10 @@ module.exports = db;
 ## 5. Summary Checklist Before Exam Day
 
 - [ ] Turso database created and credentials added to Vercel environment variables.
-- [ ] Admin password changed from default in Vercel environment variables.
+- [ ] `ADMIN_USERS` contains only individually authorized personnel; no shared/default admin password is configured.
+- [ ] A unique `SESSION_SECRET` of at least 32 bytes is configured in Vercel.
+- [ ] Admin dashboard redirects unauthenticated visitors to the sign-in page; admin API requests require an authenticated session.
+- [ ] Admin login uses HTTPS-only, HttpOnly session cookies and cross-origin admin requests are rejected.
 - [ ] Uploaded allocation CSV via the Admin Portal (`/admin.html`).
 - [ ] Verified student lookup from mobile phone on the live Vercel domain.
 - [ ] Tested the **Print Seating Arrangement** page for door sheets.

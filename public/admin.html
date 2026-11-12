@@ -27,32 +27,7 @@
         </div>
       </header>
 
-      <!-- Login View -->
-      <section id="loginView" class="card login-card no-print">
-        <div class="login-header">
-          <div class="login-icon">🔐</div>
-          <h2>Controller Sign In</h2>
-          <p class="sub">Enter the administrator password to manage seating allocations.</p>
-        </div>
-
-        <form id="loginForm" onsubmit="return false;">
-          <div class="form-group">
-            <label for="password">Administrator Password</label>
-            <input
-              id="password"
-              type="password"
-              autocomplete="current-password"
-              placeholder="Enter password"
-              required
-            >
-          </div>
-          <button id="loginBtn" type="submit" class="btn btn-primary btn-block">Sign In</button>
-        </form>
-        <div id="loginMsg" class="msg hidden" role="alert"></div>
-      </section>
-
-      <!-- Authenticated Main Dashboard -->
-      <section id="dashboard" class="hidden">
+      <section id="dashboard">
         <!-- Quick Statistics Tiles -->
         <div class="stats-grid no-print">
           <div class="stat-card">

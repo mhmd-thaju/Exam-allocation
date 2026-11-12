@@ -2,20 +2,22 @@ const router = require('express').Router();
 const multer = require('multer');
 const config = require('../config');
 const service = require('../services/allocationService');
-const { requireAdmin, login, logout } = require('../middleware/auth');
+const { requireSameOrigin, login, logout } = require('../middleware/auth');
 const { loginLimiter } = require('../middleware/rateLimit');
+const { auditAdminAction, listEvents } = require('../services/auditService');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: config.maxUploadBytes } });
 const asyncRoute = (handler) => (req, res, next) => {
   Promise.resolve(handler(req, res, next)).catch(next);
 };
 
-router.post('/login', loginLimiter, login);
-router.post('/logout', logout);
+router.use(requireSameOrigin);
+router.post('/login', loginLimiter, asyncRoute(login));
+router.post('/logout', auditAdminAction('auth.logout'), asyncRoute(logout));
 
-router.get('/stats', requireAdmin, asyncRoute(async (req, res) => res.json(await service.stats())));
+router.get('/stats', auditAdminAction('dashboard.stats.read'), asyncRoute(async (req, res) => res.json(await service.stats())));
 
-router.get('/allocations', requireAdmin, async (req, res) => {
+router.get('/allocations', auditAdminAction('allocations.list.read'), async (req, res) => {
   try {
     const list = await service.listAllocations(req.query);
     res.json({ allocations: list });
@@ -24,7 +26,11 @@ router.get('/allocations', requireAdmin, async (req, res) => {
   }
 });
 
-router.post('/records', requireAdmin, async (req, res) => {
+router.post('/records', auditAdminAction(
+  'allocations.record.save',
+  (req) => Array.isArray(req.body?.records) ? null : req.body?.register_no || null,
+  (req) => ({ recordCount: Array.isArray(req.body?.records) ? req.body.records.length : 1 })
+), async (req, res) => {
   try {
     if (Array.isArray(req.body.records)) {
       const result = await service.saveManualRecords(req.body.records);
@@ -37,7 +43,10 @@ router.post('/records', requireAdmin, async (req, res) => {
   }
 });
 
-router.delete('/record', requireAdmin, async (req, res) => {
+router.delete('/record', auditAdminAction(
+  'allocations.record.delete',
+  (req) => req.body?.register_no || null
+), async (req, res) => {
   try {
     const { register_no, exam_date, session } = req.body || {};
     if (!register_no) return res.status(400).json({ error: 'Register number is required.' });
@@ -48,7 +57,7 @@ router.delete('/record', requireAdmin, async (req, res) => {
   }
 });
 
-router.get('/rooms', requireAdmin, async (req, res) => {
+router.get('/rooms', auditAdminAction('allocations.filters.read'), async (req, res) => {
   try {
     const filters = await service.getDistinctFilters();
     res.json(filters);
@@ -57,7 +66,10 @@ router.get('/rooms', requireAdmin, async (req, res) => {
   }
 });
 
-router.get('/seating', requireAdmin, async (req, res) => {
+router.get('/seating', auditAdminAction(
+  'allocations.seating.read',
+  (req) => req.query.room || null
+), async (req, res) => {
   try {
     const { room, date, session } = req.query;
     if (!room) return res.status(400).json({ error: 'Please specify a room or class.' });
@@ -74,7 +86,7 @@ router.get('/seating', requireAdmin, async (req, res) => {
   }
 });
 
-router.get('/export', requireAdmin, async (req, res) => {
+router.get('/export', auditAdminAction('allocations.export'), async (req, res) => {
   try {
     const csvData = await service.exportCsv();
     res.setHeader('Content-Type', 'text/csv');
@@ -85,7 +97,10 @@ router.get('/export', requireAdmin, async (req, res) => {
   }
 });
 
-router.post('/upload', requireAdmin, upload.single('file'), async (req, res) => {
+router.post('/upload', auditAdminAction(
+  'allocations.import',
+  () => 'allocations'
+), upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Attach a CSV file.' });
   try {
     const { status, body } = await service.importCsv(req.file.buffer, req.body.mode);
@@ -95,9 +110,21 @@ router.post('/upload', requireAdmin, upload.single('file'), async (req, res) => 
   }
 });
 
-router.delete('/allocations', requireAdmin, asyncRoute(async (req, res) => {
+router.delete('/allocations', auditAdminAction('allocations.clear', () => 'allocations'), asyncRoute(async (req, res) => {
   await service.clearAll();
   res.json({ ok: true });
+}));
+
+router.get('/audit', auditAdminAction('audit.log.read'), asyncRoute(async (req, res) => {
+  const requestedLimit = Number(req.query.limit);
+  const requestedOffset = Number(req.query.offset);
+  const limit = Number.isFinite(requestedLimit) && requestedLimit > 0
+    ? Math.min(Math.floor(requestedLimit), 200)
+    : 100;
+  const offset = Number.isFinite(requestedOffset) && requestedOffset > 0
+    ? Math.floor(requestedOffset)
+    : 0;
+  res.json({ events: await listEvents({ limit, offset, excludeId: req.auditEventId }) });
 }));
 
 module.exports = router;

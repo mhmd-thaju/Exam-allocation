@@ -4,12 +4,12 @@ const express = require('express');
 const helmet = require('helmet');
 const compression = require('compression');
 const config = require('./src/config');
+const { isAuthenticated } = require('./src/middleware/auth');
 require('./src/db'); // initialise DB/schema
 
 const app = express();
 app.set('trust proxy', 1); // correct client IPs behind nginx/cloudflare
 
-// Configure security headers without forcing HTTPS upgrades on local Wi-Fi / HTTP
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -18,10 +18,10 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:"],
       fontSrc: ["'self'", "data:"],
-      upgradeInsecureRequests: null // Disable auto-upgrading to HTTPS on local LAN HTTP
+      upgradeInsecureRequests: config.isVercel ? [] : null
     }
   },
-  hsts: false // Disable HSTS so mobile browsers don't force HTTPS over local IP
+  hsts: config.isVercel ? undefined : false
 }));
 
 app.use(compression());
@@ -29,6 +29,17 @@ app.use(express.json({ limit: '1mb' }));
 
 app.use('/api', require('./src/routes/studentRoutes'));
 app.use('/api/admin', require('./src/routes/adminRoutes'));
+
+app.get('/admin.html', (req, res) => {
+  if (!isAuthenticated(req)) return res.redirect(302, '/admin-login.html');
+  res.set('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+app.get('/admin-login.html', (req, res, next) => {
+  if (isAuthenticated(req)) return res.redirect(302, '/admin.html');
+  next();
+});
 
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
 

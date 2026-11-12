@@ -8,11 +8,7 @@ function showMsg(el, text, type) {
 }
 
 async function api(path, options = {}) {
-  const token = sessionStorage.getItem('admin_token');
   const headers = Object.assign({}, options.headers || {});
-  if (token) {
-    headers['Authorization'] = 'Bearer ' + token;
-  }
   const fetchOptions = Object.assign({}, options, {
     credentials: 'include',
     headers
@@ -32,12 +28,9 @@ function rowKey(r) {
 
 // Authentication & View Switching
 function setLoggedIn(on) {
-  $('loginView').classList.toggle('hidden', on);
-  $('dashboard').classList.toggle('hidden', !on);
-  $('authActions').classList.toggle('hidden', !on);
-  if (on) {
-    loadAll();
-  }
+  if (!on) return window.location.replace('/admin-login.html');
+  $('authActions').classList.remove('hidden');
+  loadAll();
 }
 
 async function loadAll() {
@@ -47,7 +40,6 @@ async function loadAll() {
 async function loadStats() {
   const { ok, data } = await api('/stats');
   if (!ok) {
-    sessionStorage.removeItem('admin_token');
     return setLoggedIn(false);
   }
   $('statStudents').textContent = data.students;
@@ -484,23 +476,6 @@ $('triggerPrintBtn').addEventListener('click', () => {
 // -------------------------
 // Bulk CSV Upload & Clear
 // -------------------------
-async function login() {
-  const passVal = $('password').value;
-  if (!passVal) return showMsg($('loginMsg'), 'Please enter the administrator password.', 'error');
-
-  const { ok, data } = await api('/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password: passVal })
-  });
-  if (!ok) return showMsg($('loginMsg'), data.error || 'Login failed. Check password.', 'error');
-  if (data.token) {
-    sessionStorage.setItem('admin_token', data.token);
-  }
-  $('password').value = '';
-  setLoggedIn(true);
-}
-
 async function upload() {
   const file = $('file').files[0];
   if (!file) return showMsg($('uploadMsg'), 'Select a CSV file first.', 'error');
@@ -528,28 +503,10 @@ async function clearAll() {
 }
 
 async function logout() {
-  sessionStorage.removeItem('admin_token');
   await api('/logout', { method: 'POST' });
-  setLoggedIn(false);
+  window.location.replace('/admin-login.html');
 }
 
-const loginForm = $('loginForm');
-if (loginForm) {
-  loginForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    login();
-  });
-}
-$('loginBtn').addEventListener('click', (e) => {
-  e.preventDefault();
-  login();
-});
-$('password').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    login();
-  }
-});
 $('uploadBtn').addEventListener('click', upload);
 $('clearBtn').addEventListener('click', clearAll);
 $('logoutBtn').addEventListener('click', logout);
