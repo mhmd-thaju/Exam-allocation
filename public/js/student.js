@@ -83,7 +83,6 @@ function render(data) {
       </div>
 
       <div class="candidate-footer">
-        <div class="candidate-avatar">👤</div>
         <div class="candidate-info">
           <div class="candidate-name">${esc(data.name || 'Candidate')}</div>
           <div class="candidate-reg">Reg No: <strong>${esc(data.register_no)}</strong></div>
