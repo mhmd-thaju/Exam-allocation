@@ -41,6 +41,10 @@ app.get('/admin-login.html', (req, res, next) => {
   next();
 });
 
+app.use('/js', express.static(path.join(__dirname, 'public', 'js'), {
+  maxAge: 0,
+  setHeaders: (res) => res.setHeader('Cache-Control', 'no-store')
+}));
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
 
 app.use((err, req, res, next) => {

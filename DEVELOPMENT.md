@@ -34,6 +34,7 @@ The exam controller uploads the allocation data. Must handle 100+ student lookup
 | GET | `/api/admin/stats` | Yes | Counts |
 | GET | `/api/admin/allocations` | Yes | List / search allocations for spreadsheet view |
 | POST | `/api/admin/records` | Yes | Add / update record manually (in-built excel feature) |
+| PUT | `/api/admin/record` | Yes | Edit an existing record |
 | DELETE | `/api/admin/record` | Yes | Delete a single record |
 | GET | `/api/admin/export` | Yes | Export all allocations as CSV |
 | GET | `/api/admin/rooms` | Yes | Distinct classes/rooms, dates, and sessions |

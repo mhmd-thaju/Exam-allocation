@@ -43,6 +43,31 @@ router.post('/records', auditAdminAction(
   }
 });
 
+router.put('/record', auditAdminAction(
+  'allocations.record.update',
+  (req) => req.body?.original_register_no || null
+), async (req, res) => {
+  try {
+    const {
+      original_register_no,
+      original_exam_date,
+      original_session,
+      ...record
+    } = req.body || {};
+    if (!original_register_no) {
+      return res.status(400).json({ error: 'Original register number is required.' });
+    }
+    const updated = await service.updateManualRecord({
+      register_no: original_register_no,
+      exam_date: original_exam_date,
+      session: original_session
+    }, record);
+    res.json({ ok: true, record: updated });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
 router.delete('/record', auditAdminAction(
   'allocations.record.delete',
   (req) => req.body?.register_no || null

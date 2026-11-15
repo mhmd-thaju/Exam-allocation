@@ -41,6 +41,26 @@ async function deleteRecord(regNo, date, session) {
   });
 }
 
+async function updateRecord(original, record) {
+  return db.execute({
+    sql: `UPDATE allocations
+             SET register_no = ?, name = ?, room = ?, seat_no = ?, exam_name = ?, exam_date = ?, session = ?
+           WHERE register_no = ? AND exam_date = ? AND session = ?`,
+    args: [
+      record.register_no,
+      record.name,
+      record.room,
+      record.seat_no,
+      record.exam_name,
+      record.exam_date,
+      record.session,
+      original.register_no,
+      original.exam_date,
+      original.session
+    ]
+  });
+}
+
 async function saveAll(rows, { replace }) {
   const statements = [];
   if (replace) statements.push({ sql: 'DELETE FROM allocations' });
@@ -121,6 +141,7 @@ module.exports = {
   findTodayByRegisterNo,
   upsertRecord,
   deleteRecord,
+  updateRecord,
   saveAll,
   clear,
   stats,

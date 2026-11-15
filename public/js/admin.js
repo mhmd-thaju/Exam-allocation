@@ -26,6 +26,34 @@ function rowKey(r) {
   return `${r.register_no}___${r.exam_date || ''}___${r.session || ''}`;
 }
 
+function bindRecordActions(container) {
+  container.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-record-action]');
+    if (!button) return;
+
+    switch (button.dataset.recordAction) {
+      case 'inline-save':
+        window.saveInlineRow(button.dataset.registerNo, button.dataset.examDate, button.dataset.session);
+        break;
+      case 'inline-cancel':
+        window.cancelInlineEdit();
+        break;
+      case 'edit-inline':
+        window.startInlineEdit(button.dataset.rowKey);
+        break;
+      case 'edit-modal':
+        window.openEditModal(Number(button.dataset.index));
+        break;
+      case 'delete':
+        window.deleteRow(button.dataset.registerNo, button.dataset.examDate, button.dataset.session);
+        break;
+    }
+  });
+}
+
+bindRecordActions($('tableBody'));
+bindRecordActions($('mobileCardsContainer'));
+
 // Authentication & View Switching
 function setLoggedIn(on) {
   if (!on) return window.location.replace('/admin-login.html');
@@ -181,8 +209,9 @@ function renderAllocations(rows) {
             </select>
           </td>
           <td style="text-align: center; white-space: nowrap;">
-            <button class="btn btn-primary btn-xs" onclick="saveInlineRow('${esc(r.register_no)}', '${esc(r.exam_date)}', '${esc(r.session)}')">Save</button>
-            <button class="btn btn-ghost btn-xs" onclick="cancelInlineEdit()">Cancel</button>
+            <button class="btn btn-primary btn-xs" data-record-action="inline-save"
+              data-register-no="${esc(r.register_no)}" data-exam-date="${esc(r.exam_date)}" data-session="${esc(r.session)}">Save</button>
+            <button class="btn btn-ghost btn-xs" data-record-action="inline-cancel">Cancel</button>
           </td>
         </tr>
       `;
@@ -199,8 +228,9 @@ function renderAllocations(rows) {
         <td>${esc(r.exam_date) || '<span style="color:#94a3b8">—</span>'}</td>
         <td>${esc(r.session) || '<span style="color:#94a3b8">—</span>'}</td>
         <td style="text-align: center; white-space: nowrap;">
-          <button class="btn btn-ghost btn-xs" onclick="startInlineEdit('${esc(key)}')">Edit</button>
-          <button class="btn btn-danger btn-xs" onclick="deleteRow('${esc(r.register_no)}', '${esc(r.exam_date)}', '${esc(r.session)}')">Delete</button>
+          <button class="btn btn-ghost btn-xs" data-record-action="edit-inline" data-row-key="${esc(key)}">Edit</button>
+          <button class="btn btn-danger btn-xs" data-record-action="delete"
+            data-register-no="${esc(r.register_no)}" data-exam-date="${esc(r.exam_date)}" data-session="${esc(r.session)}">Delete</button>
         </td>
       </tr>
     `;
@@ -226,8 +256,9 @@ function renderAllocations(rows) {
       </div>
 
       <div class="mobile-card-actions">
-        <button class="btn btn-ghost btn-sm" onclick="openEditModal(${idx})">✏️ Edit</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteRow('${esc(r.register_no)}', '${esc(r.exam_date)}', '${esc(r.session)}')">🗑️ Delete</button>
+        <button class="btn btn-ghost btn-sm" data-record-action="edit-modal" data-index="${idx}">✏️ Edit</button>
+        <button class="btn btn-danger btn-sm" data-record-action="delete"
+          data-register-no="${esc(r.register_no)}" data-exam-date="${esc(r.exam_date)}" data-session="${esc(r.session)}">🗑️ Delete</button>
       </div>
     </div>
   `).join('');
@@ -256,18 +287,13 @@ window.saveInlineRow = async function(origReg, origDate, origSession) {
 
   if (!room) return alert('Room / Class is required.');
 
-  if (origDate !== exam_date || origSession !== session) {
-    await api('/record', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ register_no: origReg, exam_date: origDate, session: origSession })
-    });
-  }
-
-  const { ok, data } = await api('/records', {
-    method: 'POST',
+  const { ok, data } = await api('/record', {
+    method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      original_register_no: origReg,
+      original_exam_date: origDate,
+      original_session: origSession,
       register_no: origReg,
       name,
       room,
@@ -329,18 +355,13 @@ $('modalSaveBtn').addEventListener('click', async () => {
 
   if (!room) return alert('Room / Class is required.');
 
-  if (origDate !== exam_date || origSession !== session) {
-    await api('/record', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ register_no: origReg, exam_date: origDate, session: origSession })
-    });
-  }
-
-  const { ok, data } = await api('/records', {
-    method: 'POST',
+  const { ok, data } = await api('/record', {
+    method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      original_register_no: origReg,
+      original_exam_date: origDate,
+      original_session: origSession,
       register_no: origReg,
       name,
       room,

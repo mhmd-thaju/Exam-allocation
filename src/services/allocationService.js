@@ -66,6 +66,33 @@ async function saveManualRecord(data) {
   return record;
 }
 
+async function updateManualRecord(original, data) {
+  const originalRegisterNo = normalizeRegisterNo(original.register_no);
+  if (!originalRegisterNo) throw new Error('Invalid original register number.');
+
+  const register_no = normalizeRegisterNo(data.register_no);
+  if (!register_no) throw new Error('Valid Register / Admission Number is required.');
+  const room = String(data.room || '').trim();
+  if (!room) throw new Error('Room / Class is required.');
+
+  const record = {
+    register_no,
+    name: String(data.name || '').trim(),
+    room,
+    seat_no: String(data.seat_no || '').trim(),
+    exam_name: String(data.exam_name || '').trim(),
+    exam_date: normalizeDate(data.exam_date),
+    session: String(data.session || '').trim()
+  };
+  const result = await repo.updateRecord({
+    register_no: originalRegisterNo,
+    exam_date: normalizeDate(original.exam_date),
+    session: String(original.session || '').trim()
+  }, record);
+  if (!result.rowsAffected) throw new Error('Record not found. Refresh the allocations and try again.');
+  return record;
+}
+
 async function saveManualRecords(records) {
   if (!Array.isArray(records) || records.length === 0) {
     throw new Error('No records provided.');
@@ -85,7 +112,8 @@ async function saveManualRecords(records) {
 async function deleteRecord(regNo, date, session) {
   const normalized = normalizeRegisterNo(regNo);
   if (!normalized) throw new Error('Invalid register number.');
-  await repo.deleteRecord(normalized, normalizeDate(date), session || '');
+  const result = await repo.deleteRecord(normalized, normalizeDate(date), session || '');
+  if (!result.rowsAffected) throw new Error('Record not found. Refresh the allocations and try again.');
 }
 
 async function listAllocations(query = {}) {
@@ -132,6 +160,7 @@ module.exports = {
   stats: repo.stats,
   clearAll: repo.clear,
   saveManualRecord,
+  updateManualRecord,
   saveManualRecords,
   deleteRecord,
   listAllocations,
