@@ -36,6 +36,12 @@ app.get('/admin.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
+app.get('/dashboard', (req, res) => {
+  if (!isAuthenticated(req)) return res.redirect(302, '/admin-login.html?next=dashboard');
+  res.set('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
 app.get('/admin-login.html', (req, res, next) => {
   if (isAuthenticated(req)) return res.redirect(302, '/admin.html');
   next();

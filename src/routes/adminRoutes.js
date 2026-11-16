@@ -2,9 +2,10 @@ const router = require('express').Router();
 const multer = require('multer');
 const config = require('../config');
 const service = require('../services/allocationService');
-const { requireSameOrigin, login, logout } = require('../middleware/auth');
+const { requireSameOrigin, isAuthenticated, login, logout } = require('../middleware/auth');
 const { loginLimiter } = require('../middleware/rateLimit');
 const { auditAdminAction, listEvents } = require('../services/auditService');
+const studentLookupLog = require('../services/studentLookupLogService');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: config.maxUploadBytes } });
 const asyncRoute = (handler) => (req, res, next) => {
@@ -150,6 +151,36 @@ router.get('/audit', auditAdminAction('audit.log.read'), asyncRoute(async (req, 
     ? Math.floor(requestedOffset)
     : 0;
   res.json({ events: await listEvents({ limit, offset, excludeId: req.auditEventKey }) });
+}));
+
+router.get('/dashboard-logs', (req, res, next) => {
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not logged in.' });
+  next();
+}, asyncRoute(async (req, res) => {
+  const requestedLimit = Number(req.query.limit);
+  const requestedStudentOffset = Number(req.query.studentOffset);
+  const requestedAdminOffset = Number(req.query.adminOffset);
+  const limit = Number.isFinite(requestedLimit) && requestedLimit > 0
+    ? Math.min(Math.floor(requestedLimit), 100)
+    : 50;
+  const studentOffset = Number.isFinite(requestedStudentOffset) && requestedStudentOffset > 0
+    ? Math.floor(requestedStudentOffset)
+    : 0;
+  const adminOffset = Number.isFinite(requestedAdminOffset) && requestedAdminOffset > 0
+    ? Math.floor(requestedAdminOffset)
+    : 0;
+  const [studentStats, studentEvents, adminEvents] = await Promise.all([
+    studentLookupLog.getStats(),
+    studentLookupLog.listLookups({ limit: limit + 1, offset: studentOffset }),
+    listEvents({ limit: limit + 1, offset: adminOffset })
+  ]);
+  res.json({
+    studentStats,
+    studentEvents: studentEvents.slice(0, limit),
+    studentHasMore: studentEvents.length > limit,
+    adminEvents: adminEvents.slice(0, limit),
+    adminHasMore: adminEvents.length > limit
+  });
 }));
 
 module.exports = router;

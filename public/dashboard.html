@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="description" content="Admin-only student lookup and admin activity logs.">
+  <title>Activity Dashboard — Exam Allocation</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="admin-body">
+  <div class="app-layout">
+    <main class="container wide">
+      <header class="admin-header">
+        <div class="brand-group">
+          <span class="brand-badge">Admin Portal</span>
+          <h1>Activity Dashboard</h1>
+          <p class="sub">Student seat-arrangement lookups and admin activity</p>
+        </div>
+        <div class="dashboard-actions">
+          <button id="refreshLogsBtn" class="btn btn-ghost btn-sm" type="button">Refresh</button>
+          <button id="logoutBtn" class="btn btn-ghost btn-sm" type="button">Log out</button>
+        </div>
+      </header>
+
+      <div id="dashboardMessage" class="msg hidden" role="alert"></div>
+
+      <section class="stats-grid dashboard-stats" aria-label="Activity summary">
+        <div class="stat-card">
+          <span class="stat-label">Student lookups</span>
+          <b id="totalLookups" class="stat-val">—</b>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Unique register numbers</span>
+          <b id="uniqueLookups" class="stat-val">—</b>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Admin events shown</span>
+          <b id="adminEventsCount" class="stat-val">—</b>
+        </div>
+      </section>
+
+      <section class="card dashboard-log-card">
+        <div class="dashboard-log-heading">
+          <div>
+            <h2>Student Lookup Log</h2>
+            <p class="sub">Register numbers entered to check a seat arrangement.</p>
+          </div>
+          <button id="loadMoreStudentsBtn" class="btn btn-ghost btn-sm hidden" type="button">Load more</button>
+        </div>
+        <div class="table-wrapper">
+          <table class="dashboard-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Register Number</th>
+                <th>Student Name</th>
+                <th>Result</th>
+              </tr>
+            </thead>
+            <tbody id="studentLogBody">
+              <tr><td colspan="4" class="dashboard-empty">Loading student logs…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card dashboard-log-card">
+        <div class="dashboard-log-heading">
+          <div>
+            <h2>Admin Activity Log</h2>
+            <p class="sub">Recent actions performed by admin accounts.</p>
+          </div>
+          <button id="loadMoreAdminsBtn" class="btn btn-ghost btn-sm hidden" type="button">Load more</button>
+        </div>
+        <div class="table-wrapper">
+          <table class="dashboard-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Admin</th>
+                <th>Action</th>
+                <th>Target / Details</th>
+                <th>Outcome</th>
+              </tr>
+            </thead>
+            <tbody id="adminLogBody">
+              <tr><td colspan="5" class="dashboard-empty">Loading admin logs…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer class="app-footer">
+        <a href="/admin.html" class="admin-link">← Return to Admin Portal</a>
+      </footer>
+    </main>
+  </div>
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>

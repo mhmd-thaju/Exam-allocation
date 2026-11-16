@@ -25,7 +25,10 @@ form.addEventListener('submit', async (event) => {
     }
 
     document.getElementById('password').value = '';
-    window.location.assign('/admin.html');
+    const destination = new URLSearchParams(window.location.search).get('next') === 'dashboard'
+      ? '/dashboard'
+      : '/admin.html';
+    window.location.assign(destination);
   } catch (error) {
     message.textContent = 'Could not reach the server. Please try again.';
     message.className = 'msg error';
